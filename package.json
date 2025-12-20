@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "list:api": "node scripts/list-api.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

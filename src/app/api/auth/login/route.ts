@@ -9,7 +9,7 @@ interface User extends RowDataPacket {
   password: string;
 }
 
-export async function POST(request: Request) {
+ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
