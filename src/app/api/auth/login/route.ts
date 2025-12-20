@@ -1,6 +1,8 @@
 import { getPool } from "@/app/lib/db";
 import bcrypt from "bcryptjs";
-import { RowDataPacket } from "mysql2/promise";
+import jwt from "jsonwebtoken";
+import { NextResponse } from "next/server";
+import { RowDataPacket } from "mysql2";
 
 interface User extends RowDataPacket {
   id: number;
@@ -9,45 +11,55 @@ interface User extends RowDataPacket {
   password: string;
 }
 
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined in environment variables");
+}
+
 export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
     if (!email || !password) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Email dan password wajib diisi!" },
         { status: 400 }
       );
     }
 
     const pool = getPool();
-
     const [rows] = await pool.query<User[]>(
-      "SELECT * FROM users WHERE email = ?",
+      "SELECT id, name, email, password FROM users WHERE email = ?",
       [email]
     );
 
     if (rows.length === 0) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Email tidak ditemukan!" },
         { status: 404 }
       );
     }
 
     const user = rows[0];
-
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Password salah!" },
         { status: 401 }
       );
     }
 
-    return Response.json({
-      status: "success",
+    // Buat JWT
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return NextResponse.json({
       message: "Login berhasil!",
+      token,
       user: {
         id: user.id,
         name: user.name,
@@ -55,7 +67,8 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    return Response.json({ error: msg }, { status: 500 });
+    console.error("Login error:", error);
+    const msg = error instanceof Error ? error.message : "Terjadi kesalahan internal";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
